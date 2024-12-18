@@ -13,7 +13,6 @@
       flex-direction: row;
     }
 
-    /* 左右分割レイアウト */
     #leftPanel {
       width: 40%;
       overflow-y: auto;
@@ -65,7 +64,6 @@
       width: 100%;
     }
 
-    /* スクロール時ヘッダー固定 */
     #topControls {
       position: sticky;
       top: 0;
@@ -73,6 +71,13 @@
       z-index: 10;
       padding-bottom: 10px;
       margin-bottom: 10px;
+    }
+
+    #currentProblem {
+      background: #ffc;
+      padding: 10px;
+      font-size: 20px;
+      border-bottom: 1px solid #ccc;
     }
   </style>
 </head>
@@ -86,6 +91,7 @@
     <div id="positionsContainer"></div>
   </div>
   <div id="rightPanel">
+    <div id="currentProblem">No problem selected</div>
     <iframe id="lichessFrame"></iframe>
   </div>
 
@@ -144,6 +150,7 @@
                 event.preventDefault();
                 const iframe = document.getElementById('lichessFrame');
                 iframe.src = lichessLink;
+                document.getElementById('currentProblem').textContent = `Selected Problem: ${problem.problemid}`;
               });
 
               li.appendChild(link);
@@ -198,6 +205,7 @@
         const lichessLink = `https://lichess.org/analysis/${formattedFen}`;
         const iframe = document.getElementById('lichessFrame');
         iframe.src = lichessLink;
+        document.getElementById('currentProblem').textContent = `Selected Problem: ${problem.problemid}`;
       } else {
         alert('Problem not found');
       }
