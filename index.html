@@ -1,11 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Lichess Positions</title>
   <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: row;
+    }
+
+    /* 左右分割レイアウト */
+    #leftPanel {
+      width: 40%;
+      overflow-y: auto;
+      border-right: 1px solid #ccc;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    #rightPanel {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
     .accordion {
       background-color: #eee;
       color: #444;
@@ -31,125 +54,156 @@
       background-color: white;
       overflow: hidden;
     }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    iframe {
+      flex: 1;
+      border: none;
+      width: 100%;
+    }
+
+    /* スクロール時ヘッダー固定 */
+    #topControls {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 10;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
-
 <body>
-  <h1>Lichess Positions</h1>
-
-  <!-- 番号入力フォーム -->
-  <input type="number" id="problemNumber" placeholder="Enter problem number">
-  <button id="goButton">Go</button>
-
-  <div id="positionsContainer"></div>
+  <div id="leftPanel">
+    <h1>Lichess Positions</h1>
+    <div id="topControls">
+      <input type="number" id="problemNumber" placeholder="Enter problem number"/>
+      <button id="goButton">Go</button>
+    </div>
+    <div id="positionsContainer"></div>
+  </div>
+  <div id="rightPanel">
+    <iframe id="lichessFrame"></iframe>
+  </div>
 
   <script>
-    // problems.jsonファイルをフェッチしてリンクを生成
-    fetch('problems.json')
-      .then(response => response.json())
-      .then(data => {
-        const problems = data.problems;
-        const positionsContainer = document.getElementById('positionsContainer');
-        const problemsByType = {};
+    async function fetchProblems() {
+      const response = await fetch('problems.json');
+      const data = await response.json();
+      return data.problems;
+    }
 
-        // 問題をtypeごとにグループ化
-        problems.forEach(problem => {
-          const type = problem.type;
-          if (!problemsByType[type]) {
-            problemsByType[type] = [];
-          }
-          problemsByType[type].push(problem);
-        });
+    function loadPositions(problems) {
+      const positionsContainer = document.getElementById('positionsContainer');
+      const problemsByType = {};
 
-        // typeごとに表示
-        Object.keys(problemsByType).forEach(type => {
-          const typeDiv = document.createElement('div');
-          const typeTitle = document.createElement('h2');
-          typeTitle.textContent = type;
-          typeDiv.appendChild(typeTitle);
-
-          const problemsForType = problemsByType[type];
-
-          // 問題番号に基づいて100単位で分割して表示
-          let start = Math.floor(problemsForType[0].problemid / 100) * 100;
-          let end = start + 99;
-          while (start <= problemsForType[problemsForType.length - 1].problemid) {
-            const sublist = problemsForType.filter(problem => problem.problemid >= start && problem.problemid <= end);
-            if (sublist.length > 0) {
-              const sublistButton = document.createElement('button');
-              sublistButton.className = 'accordion';
-              sublistButton.textContent = `${type} (${start} - ${end})`;
-
-              const panelDiv = document.createElement('div');
-              panelDiv.className = 'panel';
-              const ul = document.createElement('ul');
-
-              sublist.forEach(problem => {
-                const li = document.createElement('li');
-                const fen = problem.fen;
-                const formattedFen = fen.replace(/ /g, '_'); // FENの空白をアンダースコアに置換
-                const lichessLink = `https://lichess.org/analysis/${formattedFen}`;
-
-                li.innerHTML = `<a href="${lichessLink}" target="_blank">Problem ${problem.problemid}</a>`;
-                ul.appendChild(li);
-              });
-
-              panelDiv.appendChild(ul);
-              typeDiv.appendChild(sublistButton);
-              typeDiv.appendChild(panelDiv);
-            }
-            start = end + 1;
-            end = start + 99;
-          }
-
-          positionsContainer.appendChild(typeDiv);
-        });
-
-        // アコーディオン機能の追加
-        const acc = document.getElementsByClassName("accordion");
-        for (let j = 0; j < acc.length; j++) {
-          acc[j].addEventListener("click", function () {
-            this.classList.toggle("active");
-            const panel = this.nextElementSibling;
-            if (panel.style.display === "block") {
-              panel.style.display = "none";
-            } else {
-              panel.style.display = "block";
-            }
-          });
+      problems.forEach((problem) => {
+        const { type } = problem;
+        if (!problemsByType[type]) {
+          problemsByType[type] = [];
         }
-      })
-      .catch(error => {
-        console.error('Error fetching the JSON file:', error);
+        problemsByType[type].push(problem);
       });
 
-    // 番号で直接リンクを開く機能
-    document.getElementById('goButton').addEventListener('click', openProblemByNumber);
-    document.getElementById('problemNumber').addEventListener('keypress', function (event) {
-      if (event.key === 'Enter') {
-        openProblemByNumber();
-      }
-    });
+      Object.keys(problemsByType).forEach((type) => {
+        const typeDiv = document.createElement('div');
+        const typeTitle = document.createElement('h2');
+        typeTitle.textContent = type;
+        typeDiv.appendChild(typeTitle);
 
-    function openProblemByNumber() {
-      const problemNumber = document.getElementById('problemNumber').value;
-      fetch('problems.json')
-        .then(response => response.json())
-        .then(data => {
-          const problem = data.problems.find(p => p.problemid == problemNumber);
-          if (problem) {
-            const formattedFen = problem.fen.replace(/ /g, '_');
-            const lichessLink = `https://lichess.org/analysis/${formattedFen}`;
-            window.open(lichessLink, '_blank');
-          } else {
-            alert('Problem not found');
+        const problemsForType = problemsByType[type];
+        let start = Math.floor(problemsForType[0].problemid / 100) * 100;
+        let end = start + 99;
+
+        while (start <= problemsForType[problemsForType.length - 1].problemid) {
+          const sublist = problemsForType.filter(
+            (problem) => problem.problemid >= start && problem.problemid <= end
+          );
+          if (sublist.length > 0) {
+            const sublistButton = document.createElement('button');
+            sublistButton.className = 'accordion';
+            sublistButton.textContent = `${type} (${start} - ${end})`;
+
+            const panelDiv = document.createElement('div');
+            panelDiv.className = 'panel';
+            const ul = document.createElement('ul');
+
+            sublist.forEach((problem) => {
+              const li = document.createElement('li');
+              const fen = problem.fen;
+              const formattedFen = fen.replace(/ /g, '_');
+              const lichessLink = `https://lichess.org/analysis/${formattedFen}`;
+
+              const link = document.createElement('a');
+              link.href = '#';
+              link.textContent = `Problem ${problem.problemid}`;
+              link.addEventListener('click', (event) => {
+                event.preventDefault();
+                const iframe = document.getElementById('lichessFrame');
+                iframe.src = lichessLink;
+              });
+
+              li.appendChild(link);
+              ul.appendChild(li);
+            });
+
+            panelDiv.appendChild(ul);
+            typeDiv.appendChild(sublistButton);
+            typeDiv.appendChild(panelDiv);
           }
-        })
-        .catch(error => {
-          console.error('Error fetching the JSON file:', error);
+          start = end + 1;
+          end = start + 99;
+        }
+
+        positionsContainer.appendChild(typeDiv);
+      });
+
+      // アコーディオン機能
+      const acc = document.getElementsByClassName('accordion');
+      for (let j = 0; j < acc.length; j++) {
+        acc[j].addEventListener('click', function () {
+          this.classList.toggle('active');
+          const panel = this.nextElementSibling;
+          if (panel.style.display === 'block') {
+            panel.style.display = 'none';
+          } else {
+            panel.style.display = 'block';
+          }
         });
+      }
     }
+
+    async function init() {
+      const problems = await fetchProblems();
+      loadPositions(problems);
+
+      document.getElementById('goButton').addEventListener('click', () => {
+        openProblemByNumber(problems);
+      });
+      document.getElementById('problemNumber').addEventListener('keypress', function (event) {
+        if (event.key === 'Enter') {
+          openProblemByNumber(problems);
+        }
+      });
+    }
+
+    function openProblemByNumber(problems) {
+      const problemNumber = document.getElementById('problemNumber').value;
+      const problem = problems.find((p) => p.problemid == problemNumber);
+      if (problem) {
+        const formattedFen = problem.fen.replace(/ /g, '_');
+        const lichessLink = `https://lichess.org/analysis/${formattedFen}`;
+        const iframe = document.getElementById('lichessFrame');
+        iframe.src = lichessLink;
+      } else {
+        alert('Problem not found');
+      }
+    }
+
+    init();
   </script>
 </body>
-
 </html>
