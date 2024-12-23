@@ -79,6 +79,11 @@
       font-size: 20px;
       border-bottom: 1px solid #ccc;
     }
+
+    /* クリック済みリンクの色を変えるためのクラス */
+    .visitedLink {
+      color: purple !important;
+    }
   </style>
 </head>
 <body>
@@ -87,6 +92,7 @@
     <div id="topControls">
       <input type="number" id="problemNumber" placeholder="Enter problem number"/>
       <button id="goButton">Go</button>
+      <button id="randomButton">Random</button>
     </div>
     <div id="positionsContainer"></div>
   </div>
@@ -96,15 +102,47 @@
   </div>
 
   <script>
+    // 最後に開いた問題IDを保存する
+    function storeLastProblem(problemId) {
+      localStorage.setItem('lastProblem', problemId);
+    }
+
+    // 最後に開いた問題IDを取得する
+    function getLastProblem() {
+      return localStorage.getItem('lastProblem');
+    }
+
+    // 訪問済みの問題IDリストを保存する
+    function storeVisitedProblem(problemId) {
+      const visitedString = localStorage.getItem('visitedProblems');
+      let visited = visitedString ? JSON.parse(visitedString) : [];
+      // 数値・文字列混在を避けるため、文字列で統一
+      if (!visited.includes(String(problemId))) {
+        visited.push(String(problemId));
+        localStorage.setItem('visitedProblems', JSON.stringify(visited));
+      }
+    }
+
+    // 訪問済みの問題IDリストを取得する
+    function getVisitedProblems() {
+      const visitedString = localStorage.getItem('visitedProblems');
+      return visitedString ? JSON.parse(visitedString) : [];
+    }
+
+    // 全問題データを取得
     async function fetchProblems() {
       const response = await fetch('problems.json');
       const data = await response.json();
       return data.problems;
     }
 
+    // 左側に問題リストを描画
     function loadPositions(problems) {
       const positionsContainer = document.getElementById('positionsContainer');
       const problemsByType = {};
+
+      // 訪問済みの問題一覧を先に取得
+      const visitedProblems = getVisitedProblems();
 
       problems.forEach((problem) => {
         const { type } = problem;
@@ -146,11 +184,23 @@
               const link = document.createElement('a');
               link.href = '#';
               link.textContent = `Problem ${problem.problemid}`;
+              // 訪問済みなら色を変える
+              if (visitedProblems.includes(String(problem.problemid))) {
+                link.classList.add('visitedLink');
+              }
+
               link.addEventListener('click', (event) => {
                 event.preventDefault();
                 const iframe = document.getElementById('lichessFrame');
                 iframe.src = lichessLink;
                 document.getElementById('currentProblem').textContent = `Selected Problem: ${problem.problemid}`;
+
+                // クッキーやlocalStorageに保存
+                storeLastProblem(problem.problemid);
+                storeVisitedProblem(problem.problemid);
+
+                // 今回クリックしたリンクの色を即座に変える
+                link.classList.add('visitedLink');
               });
 
               li.appendChild(link);
@@ -183,22 +233,8 @@
       }
     }
 
-    async function init() {
-      const problems = await fetchProblems();
-      loadPositions(problems);
-
-      document.getElementById('goButton').addEventListener('click', () => {
-        openProblemByNumber(problems);
-      });
-      document.getElementById('problemNumber').addEventListener('keypress', function (event) {
-        if (event.key === 'Enter') {
-          openProblemByNumber(problems);
-        }
-      });
-    }
-
-    function openProblemByNumber(problems) {
-      const problemNumber = document.getElementById('problemNumber').value;
+    // 指定したproblemNumberの問題を開く
+    function openProblemByNumber(problems, problemNumber) {
       const problem = problems.find((p) => p.problemid == problemNumber);
       if (problem) {
         const formattedFen = problem.fen.replace(/ /g, '_');
@@ -206,8 +242,52 @@
         const iframe = document.getElementById('lichessFrame');
         iframe.src = lichessLink;
         document.getElementById('currentProblem').textContent = `Selected Problem: ${problem.problemid}`;
+
+        storeLastProblem(problem.problemid);
+        storeVisitedProblem(problem.problemid);
       } else {
         alert('Problem not found');
+      }
+    }
+
+    // ランダムな問題を開く
+    function openRandomProblem(problems) {
+      const randomIndex = Math.floor(Math.random() * problems.length);
+      const randomProblem = problems[randomIndex];
+      if (randomProblem) {
+        openProblemByNumber(problems, randomProblem.problemid);
+        document.getElementById('problemNumber').value = randomProblem.problemid;
+      }
+    }
+
+    // ページ初期化
+    async function init() {
+      const problems = await fetchProblems();
+      loadPositions(problems);
+
+      // Goボタン押下で問題を開く
+      document.getElementById('goButton').addEventListener('click', () => {
+        const problemNumber = document.getElementById('problemNumber').value;
+        openProblemByNumber(problems, problemNumber);
+      });
+      // Enterキーでも同様に
+      document.getElementById('problemNumber').addEventListener('keypress', function (event) {
+        if (event.key === 'Enter') {
+          const problemNumber = document.getElementById('problemNumber').value;
+          openProblemByNumber(problems, problemNumber);
+        }
+      });
+
+      // Randomボタンでランダムに問題を開く
+      document.getElementById('randomButton').addEventListener('click', () => {
+        openRandomProblem(problems);
+      });
+
+      // 最後に開いていた問題があれば自動的に開く
+      const lastProblem = getLastProblem();
+      if (lastProblem) {
+        openProblemByNumber(problems, lastProblem);
+        document.getElementById('problemNumber').value = lastProblem;
       }
     }
 
