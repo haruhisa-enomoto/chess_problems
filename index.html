@@ -1,24 +1,19 @@
-<!DOCTYPE html>
-<html lang="ja">
+<!DOCTYPE html><html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Tactics (SVG Board)</title>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Tactics – cm-chessboard</title>
 
-  <!-- cm-chessboard UMD + CSS → 依存ゼロでロード -->
-  <link href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.8/assets/chessboard.css"
-        rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.8/cjs/cm-chessboard-min.js"></script>
-  <!-- ↑ UMD ビルドなので <script type=\"module\"> 不要 -->
-
+  <!-- ボードの CSS（CDN） -->
+  <link href="https://cdn.jsdelivr.net/npm/cm-chessboard@8/dist/cm-chessboard.css" rel="stylesheet">
   <style>
     body{margin:0;font-family:system-ui,sans-serif;height:100vh;display:flex}
     #side{width:280px;overflow-y:auto;border-right:1px solid #ddd;padding:8px;box-sizing:border-box}
     #main{flex:1;display:flex;flex-direction:column}
     #boardBox{flex:1;display:flex;justify-content:center;align-items:center}
-    ul{list-style:none;padding:0;margin:0} a{display:block;padding:4px 6px;
-      text-decoration:none;color:#036;border-radius:4px} a:hover{background:#eef}
-    .v{color:purple!important} #info{padding:8px;border-bottom:1px solid #ddd;background:#fafafa}
+    ul{list-style:none;padding:0;margin:0}
+    a{display:block;padding:4px 6px;color:#036;text-decoration:none;border-radius:4px}
+    a:hover{background:#eef}.v{color:purple!important}
+    #info{padding:8px;border-bottom:1px solid #ddd;background:#fafafa}
   </style>
 </head>
 <body>
@@ -33,52 +28,56 @@
     <div id="boardBox"><div id="board" style="width:min(90vmin,500px)"></div></div>
   </div>
 
-<script>
-(async () => {
-  // ---------- ① データ読込 ----------
-  let probs=[];
+<!-- ES-Module で読み込み → グローバル衝突なし -->
+<script type="module">
+  import {Chessboard} from 'https://cdn.jsdelivr.net/npm/cm-chessboard@8/src/Chessboard.js';
+
+  const spriteUrl =
+    'https://cdn.jsdelivr.net/npm/cm-chessboard@8/assets/chessboard-sprite.svg'; // SVG 駒セット:contentReference[oaicite:3]{index=3}
+  const board = new Chessboard(document.getElementById('board'), {
+    sprite: {url: spriteUrl},
+    position: 'start'
+  });
+
+  // ---------- 問題データ ----------
+  let problems = [];
   try{
-    const r=await fetch('problems.json'); if(!r.ok) throw 0;
-    probs=(await r.json()).problems;
+    const res = await fetch('problems.json');             // 自作 JSON
+    if(!res.ok) throw 0;
+    problems = (await res.json()).problems;
   }catch{
-    probs=[{problemid:1,type:'Mate in One',first:'White',fen:'3q1rk1/5pbp/5Qp1/8/8/2B5/5PPP/6K1 w - -'}];
+    problems = [                                          // デモ1問
+      {problemid:1,type:'Mate in One',first:'White',
+       fen:'3q1rk1/5pbp/5Qp1/8/8/2B5/5PPP/6K1 w - -'}
+    ];
   }
 
-  // ---------- ② SVG ボード初期化 ----------
-  const board=new Chessboard(document.getElementById('board'),{
-    position:'start',
-    sprite: { // 駒 SVG 一式のある CDN パス
-      url:"https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.8/assets/chessboard-sprite.svg"
-    }
-  }); // 駒 PNG 問題が完全に解消 :contentReference[oaicite:3]{index=3}
+  const list = document.getElementById('list');
+  const filter = document.getElementById('filter');
+  const info = document.getElementById('info');
+  const seen = new Set(JSON.parse(localStorage.getItem('seen')||'[]'));
 
-  const vis=new Set(JSON.parse(localStorage.getItem('vis')||'[]'));
-  const list=document.getElementById('list');
-  const info=document.getElementById('info');
-
-  // ---------- ③ リスト描画 & フィルタ ----------
-  function draw(q=''){
+  function redraw(q=''){
     list.innerHTML='';
-    probs.filter(p=>String(p.problemid).includes(q)||p.type.toLowerCase().includes(q.toLowerCase()))
-         .forEach(p=>{
-           const a=document.createElement('a');
-           a.textContent=`#${p.problemid} – ${p.type}`;
-           if(vis.has(p.problemid)) a.classList.add('v');
-           a.onclick=()=>open(p,a); list.appendChild(a);
-         });
+    problems
+      .filter(p=>String(p.problemid).includes(q)||p.type.toLowerCase().includes(q.toLowerCase()))
+      .forEach(p=>{
+        const a=document.createElement('a');
+        a.textContent=`#${p.problemid} – ${p.type}`;
+        if(seen.has(p.problemid)) a.classList.add('v');
+        a.onclick=()=>open(p,a);
+        list.appendChild(a);
+      });
   }
-  document.getElementById('filter').oninput=e=>draw(e.target.value);
-  draw();
+  filter.oninput=e=>redraw(e.target.value);
+  redraw();
 
-  // ---------- ④ 問題オープン ----------
-  function open(p,link){
+  function open(p,a){
     board.setPosition(p.fen);
     info.textContent=`#${p.problemid} – ${p.type} (${p.first} to move)`;
-    vis.add(p.problemid);
-    localStorage.setItem('vis',JSON.stringify([...vis]));
-    link.classList.add('v'); // visited coloring
+    seen.add(p.problemid);
+    localStorage.setItem('seen',JSON.stringify([...seen]));
+    a.classList.add('v');
   }
-})();
 </script>
-</body>
-</html>
+</body></html>
