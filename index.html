@@ -12,12 +12,12 @@
 
   <!-- Chessground (UMD bundle from cdnjs 9.1.1) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessground/9.1.1/chessground.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessground/9.1.1/chessground.min.js" integrity="sha512-a" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <!-- Fallback to jsDelivr older UMD if cdnjs blocked -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessground/9.1.1/chessground.min.js"></script></script>
+  <!-- Fallback if cdnjs blocked -->
   <script>
     if (!window.Chessground) {
       var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/@jaxony/chessground@7.3.2/chessground.min.js';
+      s.src = 'https://unpkg.com/chessground@9.1.1/dist/chessground.min.js';
       document.head.appendChild(s);
     }
   </script>
@@ -93,11 +93,20 @@
         async init() {
           try {
             const res = await fetch('problems.json');
+            if (!res.ok) throw new Error('fetch failed');
             const data = await res.json();
             this.problems = data.problems;
-            this.grouped = groupByType(this.problems);
-            const last = localStorage.getItem(STORAGE_LAST); if (last) { const p = this.problems.find(p => p.problemid == last); if (p) this.openProblem(p); }
-          } catch (e) { console.error(e); alert('Failed to load problems.json'); }
+          } catch (e) {
+            // Fallback sample problems to avoid blank page
+            console.error('problems.json missing, loading demo data');
+            this.problems = [
+              {problemid:1, first:'White to Move', type:'Mate in One', fen:'3q1rk1/5pbp/5Qp1/8/8/2B5/5PPP/6K1 w - - 0 1'},
+              {problemid:2, first:'White to Move', type:'Mate in One', fen:'2r2rk1/2q2p1p/6pQ/4P1N1/8/8/PPP5/2KR4 w - - 0 1'}
+            ];
+          }
+          this.grouped = groupByType(this.problems);
+          const last = localStorage.getItem(STORAGE_LAST);
+          if (last) { const p = this.problems.find(p => p.problemid == last); if (p) this.openProblem(p); } (e) { console.error(e); alert('Failed to load problems.json'); }
         },
       };
       function groupByType(arr) { const map = {}; arr.forEach(p => (map[p.type] = map[p.type] || []).push(p)); return Object.keys(map).map(k => ({ name: k, items: map[k] })); }
