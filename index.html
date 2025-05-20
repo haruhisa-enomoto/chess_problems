@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Chess Problems (Lite)</title>
 
-  <!-- chessboard.js v1.0.0 (UMD, no dependencies) -->
+  <!-- jQuery (needed for chessboard 1.0.0 plugin build) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+  <!-- chessboard.js v1.0.0 (jQuery plugin build) -->
   <link  href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
   <!-- Fallback in case cdnjs blocked -->
@@ -93,6 +95,7 @@
       visited.add(p.problemid);
       localStorage.setItem('visited',JSON.stringify([...visited]));
       if(link) link.classList.add('visited');
+      localStorage.setItem('last', p.problemid);
     }
 
     filterInput.oninput=e=>draw(e.target.value);
