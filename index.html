@@ -5,18 +5,28 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Chess Problems (Lite)</title>
 
-  <!-- ★ 必須：chessboard.js と chess.js -->
-  <link  href="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard.min.css" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard.min.js"></script>
+  <!-- chessboard.js v1.0.0 (UMD, no dependencies) -->
+  <link  href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  <!-- Fallback in case cdnjs blocked -->
+  <script>
+    if (!window.Chessboard) {
+      var s=document.createElement('script');
+      s.src='https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/www/js/chessboard.js';
+      document.head.appendChild(s);
+      var l=document.createElement('link');
+      l.rel='stylesheet';
+      l.href='https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/www/css/chessboard.css';
+      document.head.appendChild(l);
+    }
+  </script>
 
   <style>
-    body      { margin:0; font-family:system-ui, sans-serif; height:100vh; display:flex; }
-    #left     { width:280px; overflow-y:auto; border-right:1px solid #ddd; padding:8px; box-sizing:border-box;}
+    body      { margin:0; font-family:system-ui,sans-serif; height:100vh; display:flex; }
+    #left     { width:280px; overflow-y:auto; border-right:1px solid #ddd; padding:8px; box-sizing:border-box; }
     #right    { flex:1; display:flex; flex-direction:column; }
     #boardBox { flex:1; display:flex; justify-content:center; align-items:center; }
     h1        { margin:0 0 8px 0; font-size:18px; }
-    button, a { cursor:pointer; }
     ul        { list-style:none; padding-left:0; margin:0; }
     li a      { display:block; padding:4px 6px; text-decoration:none; color:#036; border-radius:4px; }
     li a:hover{ background:#eef; }
@@ -33,63 +43,68 @@
 
   <div id="right">
     <div id="current">No problem selected</div>
-    <div id="boardBox"><div id="board" style="width: min(90vmin,500px)"></div></div>
+    <div id="boardBox"><div id="board" style="width:min(90vmin,500px)"></div></div>
   </div>
 
 <script>
-(async () => {
-  // --- ① データ読込（problems.json が無ければデモ 2 問）
-  let problems = [];
-  try {
-    const res = await fetch('problems.json');
-    if (!res.ok) throw 0;
-    problems = (await res.json()).problems;
-  } catch {
-    problems = [
-      {problemid:1,type:'Mate in One', first:'White', fen:'3q1rk1/5pbp/5Qp1/8/8/2B5/5PPP/6K1 w - - 0 1'},
-      {problemid:2,type:'Mate in One', first:'White', fen:'2r2rk1/2q2p1p/6pQ/4P1N1/8/8/PPP5/2KR4 w - - 0 1'}
+(async function(){
+  // 1) Load problems
+  let problems=[];
+  try{
+    const r=await fetch('problems.json');
+    if(!r.ok) throw 0;
+    problems=(await r.json()).problems;
+  }catch(e){
+    problems=[
+     {problemid:1,type:'Mate in One', first:'White', fen:'3q1rk1/5pbp/5Qp1/8/8/2B5/5PPP/6K1 w - - 0 1'},
+     {problemid:2,type:'Mate in One', first:'White', fen:'2r2rk1/2q2p1p/6pQ/4P1N1/8/8/PPP5/2KR4 w - - 0 1'}
     ];
   }
 
-  const listEl  = document.getElementById('list');
-  const board   = Chessboard('board', { draggable:false });
-  const visited = new Set(JSON.parse(localStorage.getItem('visited')||'[]'));
-
-  // --- ② リスト描画
-  function draw(filter=''){
-    listEl.innerHTML='';
-    problems
-      .filter(p=> String(p.problemid).includes(filter) || p.type.toLowerCase().includes(filter.toLowerCase()))
-      .forEach(p=>{
-        const li=document.createElement('li');
-        const a =document.createElement('a');
-        a.textContent = `#${p.problemid} – ${p.type}`;
-        if(visited.has(p.problemid)) a.classList.add('visited');
-        a.onclick=()=> openProblem(p, a);
-        li.appendChild(a); listEl.appendChild(li);
-      });
-  }
-  draw();
-
-  // --- ③ 検索
-  document.getElementById('filter').oninput=e=> draw(e.target.value);
-
-  // --- ④ 問題を開く
-  function openProblem(p, link){
-    board.position(p.fen);
-    document.getElementById('current').textContent = `Problem #${p.problemid} – ${p.type} (${p.first} to move)`;
-    visited.add(p.problemid);
-    localStorage.setItem('visited', JSON.stringify([...visited]));
-    listEl.querySelectorAll('a').forEach(a=>a.classList.toggle('visited', visited.has(Number(a.textContent.slice(1)))));
-    if(link) link.classList.add('visited');
+  // 2) Init board after library ready
+  function whenReady(fn){
+    if(window.Chessboard) fn();
+    else setTimeout(()=>whenReady(fn),50);
   }
 
-  // --- ⑤ 最後に開いた問題を復元
-  const last = localStorage.getItem('last');
-  if(last){
-    const p = problems.find(x=> x.problemid==last);
-    if(p) openProblem(p);
-  }
+  whenReady(()=>{
+    const board=Chessboard('board','start');
+    const visited=new Set(JSON.parse(localStorage.getItem('visited')||'[]'));
+    const list=document.getElementById('list');
+    const filterInput=document.getElementById('filter');
+
+    function draw(filter=''){
+      list.innerHTML='';
+      problems.filter(p=>String(p.problemid).includes(filter)||p.type.toLowerCase().includes(filter.toLowerCase()))
+        .forEach(p=>{
+          const li=document.createElement('li');
+          const a=document.createElement('a');
+          a.textContent=`#${p.problemid} – ${p.type}`;
+          if(visited.has(p.problemid)) a.classList.add('visited');
+          a.onclick=()=>open(p,a);
+          li.appendChild(a);
+          list.appendChild(li);
+        });
+    }
+
+    function open(p,link){
+      board.position(p.fen);
+      document.getElementById('current').textContent=`Problem #${p.problemid} – ${p.type} (${p.first} to move)`;
+      visited.add(p.problemid);
+      localStorage.setItem('visited',JSON.stringify([...visited]));
+      if(link) link.classList.add('visited');
+    }
+
+    filterInput.oninput=e=>draw(e.target.value);
+
+    draw();
+
+    const last=localStorage.getItem('last');
+    if(last){
+      const p=problems.find(x=>x.problemid==last);
+      if(p) open(p);
+    }
+  });
 })();
 </script>
 </body>
