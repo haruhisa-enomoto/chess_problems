@@ -5,35 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chess Tactics Trainer</title>
 
-  <!-- Tailwind Play CDN (OK for GitHub Pages) -->
+  <!-- Tailwind Play CDN (OK for GitHub Pages) -->
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
   <!-- Alpine.js for reactivity -->
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-  <!-- Chessground (v9 ‑ latest)  -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.2.1/assets/chessground.base.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.2.1/assets/chessground.brown.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chessground@9.2.1/dist/chessground.min.js"></script>
-  <!-- Fallback to unpkg if jsDelivr is blocked -->
+  <!-- Chessground (UMD bundle from cdnjs 9.1.1) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessground/9.1.1/chessground.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessground/9.1.1/chessground.min.js" integrity="sha512-a" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- Fallback to jsDelivr older UMD if cdnjs blocked -->
   <script>
     if (!window.Chessground) {
       var s = document.createElement('script');
-      s.src = 'https://unpkg.com/chessground@9.2.1/dist/chessground.min.js';
+      s.src = 'https://cdn.jsdelivr.net/npm/@jaxony/chessground@7.3.2/chessground.min.js';
       document.head.appendChild(s);
     }
   </script>
 
   <style>
-    /* Keep the board square */
-    .board-wrapper {
-      position: relative;
-      width: 100%;
-      padding-top: 100%;
-    }
-    #board {
-      position: absolute;
-      inset: 0;
-    }
+    .board-wrapper { position: relative; width: 100%; padding-top: 100%; }
+    #board { position: absolute; inset: 0; }
   </style>
 </head>
 <body x-data="trainerApp()" x-init="init()" class="bg-gray-50 text-gray-800">
@@ -44,16 +35,12 @@
         <h1 class="text-xl font-bold">Tactics Trainer</h1>
       </div>
 
-      <!-- Search / stats -->
       <div class="p-4 space-y-3">
         <input type="search" placeholder="Search ID or type…" x-model="query" @input="filterList()" class="w-full px-3 py-2 rounded border border-gray-300 bg-gray-100" />
         <div class="text-sm text-gray-500" x-text="`${visited.size} / ${problems.length} solved`"></div>
-        <div class="w-full bg-gray-200 rounded h-2">
-          <div class="bg-green-500 h-2 rounded" :style="`width:${progress}%`"></div>
-        </div>
+        <div class="w-full bg-gray-200 rounded h-2"><div class="bg-green-500 h-2 rounded" :style="`width:${progress}%`"></div></div>
       </div>
 
-      <!-- Grouped list -->
       <nav class="px-4 pb-6 space-y-1">
         <template x-for="group in grouped" :key="group.name">
           <details class="group" open>
@@ -63,9 +50,7 @@
             </summary>
             <ul class="pl-4 space-y-1">
               <template x-for="item in group.items" :key="item.problemid">
-                <li>
-                  <a href="#" @click.prevent="openProblem(item)" :class="{'text-purple-600': visited.has(item.problemid)}" class="block px-2 py-1 rounded hover:bg-gray-100" x-text="`#${item.problemid}`"></a>
-                </li>
+                <li><a href="#" @click.prevent="openProblem(item)" :class="{'text-purple-600': visited.has(item.problemid)}" class="block px-2 py-1 rounded hover:bg-gray-100" x-text="`#${item.problemid}`"></a></li>
               </template>
             </ul>
           </details>
@@ -75,15 +60,8 @@
 
     <!-- Main -->
     <main class="flex-1 flex flex-col">
-      <header class="p-4 border-b border-gray-200 bg-white">
-        <h2 class="text-lg font-semibold" x-text="currentLabel"></h2>
-      </header>
-
-      <section class="flex-1 flex items-center justify-center p-4">
-        <div class="board-wrapper w-full max-w-xl">
-          <div id="board"></div>
-        </div>
-      </section>
+      <header class="p-4 border-b border-gray-200 bg-white"><h2 class="text-lg font-semibold" x-text="currentLabel"></h2></header>
+      <section class="flex-1 flex items-center justify-center p-4"><div class="board-wrapper w-full max-w-xl"><div id="board"></div></div></section>
     </main>
   </div>
 
@@ -91,7 +69,6 @@
     function trainerApp() {
       const STORAGE_VISITED = 'visitedProblems';
       const STORAGE_LAST = 'lastProblem';
-
       return {
         problems: [],
         grouped: [],
@@ -99,35 +76,15 @@
         query: '',
         currentLabel: 'Pick a problem',
         cg: null,
-        get progress() {
-          return this.problems.length ? (this.visited.size / this.problems.length) * 100 : 0;
-        },
+        get progress() { return this.problems.length ? (this.visited.size / this.problems.length) * 100 : 0; },
         filterList() {
-          if (!this.query) {
-            this.grouped = groupByType(this.problems);
-            return;
-          }
           const q = this.query.toLowerCase();
-          this.grouped = groupByType(
-            this.problems.filter(p => String(p.problemid).includes(q) || p.type.toLowerCase().includes(q))
-          );
+          this.grouped = groupByType(q ? this.problems.filter(p => String(p.problemid).includes(q) || p.type.toLowerCase().includes(q)) : this.problems);
         },
         openProblem(item) {
-          if (!window.Chessground) {
-            alert('Chessground failed to load. Please check your network or reload.');
-            return;
-          }
-          const orientation = item.first.toLowerCase().includes('black') ? 'black' : 'white';
-          if (!this.cg) {
-            this.cg = Chessground(document.getElementById('board'), {
-              fen: item.fen,
-              orientation,
-              coordinates: true,
-            });
-          } else {
-            this.cg.set({ fen: item.fen, orientation });
-          }
-
+          if (!window.Chessground) { alert('Chessground still failed to load. Try reloading after cache clear.'); return; }
+          const orientation = /black/i.test(item.first) ? 'black' : 'white';
+          this.cg ? this.cg.set({ fen: item.fen, orientation }) : (this.cg = Chessground(document.getElementById('board'), { fen: item.fen, orientation, coordinates: true }));
           this.currentLabel = `#${item.problemid} – ${item.type} (${item.first})`;
           this.visited.add(item.problemid);
           localStorage.setItem(STORAGE_VISITED, JSON.stringify([...this.visited]));
@@ -139,24 +96,11 @@
             const data = await res.json();
             this.problems = data.problems;
             this.grouped = groupByType(this.problems);
-
-            const last = localStorage.getItem(STORAGE_LAST);
-            if (last) {
-              const p = this.problems.find(p => p.problemid == last);
-              if (p) this.openProblem(p);
-            }
-          } catch (e) {
-            console.error(e);
-            alert('Failed to load problems.json');
-          }
+            const last = localStorage.getItem(STORAGE_LAST); if (last) { const p = this.problems.find(p => p.problemid == last); if (p) this.openProblem(p); }
+          } catch (e) { console.error(e); alert('Failed to load problems.json'); }
         },
       };
-
-      function groupByType(arr) {
-        const map = {};
-        arr.forEach(p => (map[p.type] = map[p.type] || []).push(p));
-        return Object.keys(map).map(k => ({ name: k, items: map[k] }));
-      }
+      function groupByType(arr) { const map = {}; arr.forEach(p => (map[p.type] = map[p.type] || []).push(p)); return Object.keys(map).map(k => ({ name: k, items: map[k] })); }
     }
   </script>
 </body>
