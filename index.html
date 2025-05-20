@@ -4,29 +4,35 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Chess Tactics Trainer</title>
-  <!-- Tailwind Play CDN for quick styling -->
+
+  <!-- Tailwind Play CDN (OK for GitHub Pages) -->
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-  <!-- Alpine.js for light reactivity (3 kB gzip) -->
+  <!-- Alpine.js for reactivity -->
   <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-  <!-- Chessground: lightweight open-source board used by lichess.org -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@8.4.2/assets/chessground.base.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@8.4.2/assets/chessground.brown.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chessground@8.4.2/dist/chessground.min.js"></script>
+  <!-- Chessground (v9 ‑ latest)  -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.2.1/assets/chessground.base.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.2.1/assets/chessground.brown.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chessground@9.2.1/dist/chessground.min.js"></script>
+  <!-- Fallback to unpkg if jsDelivr is blocked -->
+  <script>
+    if (!window.Chessground) {
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/chessground@9.2.1/dist/chessground.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
 
   <style>
-    /* Make the board keep a perfect square ratio */
+    /* Keep the board square */
     .board-wrapper {
       position: relative;
       width: 100%;
-      padding-top: 100%; /* 1:1 ratio */
+      padding-top: 100%;
     }
     #board {
       position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      left: 0;
+      inset: 0;
     }
   </style>
 </head>
@@ -92,7 +98,7 @@
         visited: new Set(JSON.parse(localStorage.getItem(STORAGE_VISITED) || '[]')),
         query: '',
         currentLabel: 'Pick a problem',
-        cg: null, // Chessground instance
+        cg: null,
         get progress() {
           return this.problems.length ? (this.visited.size / this.problems.length) * 100 : 0;
         },
@@ -103,50 +109,52 @@
           }
           const q = this.query.toLowerCase();
           this.grouped = groupByType(
-            this.problems.filter(
-              p => String(p.problemid).includes(q) || p.type.toLowerCase().includes(q)
-            )
+            this.problems.filter(p => String(p.problemid).includes(q) || p.type.toLowerCase().includes(q))
           );
         },
         openProblem(item) {
-          // Orientation based on side to move
+          if (!window.Chessground) {
+            alert('Chessground failed to load. Please check your network or reload.');
+            return;
+          }
           const orientation = item.first.toLowerCase().includes('black') ? 'black' : 'white';
-
           if (!this.cg) {
             this.cg = Chessground(document.getElementById('board'), {
               fen: item.fen,
-              orientation: orientation,
-              coordinates: true
+              orientation,
+              coordinates: true,
             });
           } else {
-            this.cg.set({ fen: item.fen, orientation: orientation });
+            this.cg.set({ fen: item.fen, orientation });
           }
 
           this.currentLabel = `#${item.problemid} – ${item.type} (${item.first})`;
           this.visited.add(item.problemid);
-          localStorage.setItem(STORAGE_VISITED, JSON.stringify(Array.from(this.visited)));
+          localStorage.setItem(STORAGE_VISITED, JSON.stringify([...this.visited]));
           localStorage.setItem(STORAGE_LAST, item.problemid);
         },
         async init() {
-          const res = await fetch('problems.json');
-          const data = await res.json();
-          this.problems = data.problems;
-          this.grouped = groupByType(this.problems);
+          try {
+            const res = await fetch('problems.json');
+            const data = await res.json();
+            this.problems = data.problems;
+            this.grouped = groupByType(this.problems);
 
-          // Restore last session
-          const last = localStorage.getItem(STORAGE_LAST);
-          if (last) {
-            const p = this.problems.find(p => p.problemid == last);
-            if (p) this.openProblem(p);
+            const last = localStorage.getItem(STORAGE_LAST);
+            if (last) {
+              const p = this.problems.find(p => p.problemid == last);
+              if (p) this.openProblem(p);
+            }
+          } catch (e) {
+            console.error(e);
+            alert('Failed to load problems.json');
           }
-        }
+        },
       };
 
       function groupByType(arr) {
         const map = {};
-        arr.forEach(p => {
-          (map[p.type] = map[p.type] || []).push(p);
-        });
+        arr.forEach(p => (map[p.type] = map[p.type] || []).push(p));
         return Object.keys(map).map(k => ({ name: k, items: map[k] }));
       }
     }
