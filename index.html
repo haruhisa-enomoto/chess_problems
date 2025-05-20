@@ -1,297 +1,192 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja" class="scroll-smooth">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Lichess Positions</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chess Tactics Trainer</title>
+  <!-- Tailwind Play CDN for rapid prototyping -->
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  <!-- Alpine.js for lightweight reactivity -->
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <!-- Feather icons (optional) -->
+  <script src="https://unpkg.com/feather-icons"></script>
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: row;
-    }
-
-    #leftPanel {
-      width: 40%;
-      overflow-y: auto;
-      border-right: 1px solid #ccc;
-      padding: 10px;
-      box-sizing: border-box;
-    }
-
-    #rightPanel {
-      flex: 1;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .accordion {
-      background-color: #eee;
-      color: #444;
-      cursor: pointer;
-      padding: 10px;
-      width: 100%;
-      border: none;
-      text-align: left;
-      outline: none;
-      font-size: 18px;
-      transition: 0.4s;
-      margin-top: 5px;
-    }
-
-    .active,
-    .accordion:hover {
-      background-color: #ccc;
-    }
-
-    .panel {
-      padding: 0 18px;
-      display: none;
-      background-color: white;
-      overflow: hidden;
-    }
-
-    h1 {
-      margin-top: 0;
-    }
-
-    iframe {
-      flex: 1;
-      border: none;
-      width: 100%;
-    }
-
-    #topControls {
-      position: sticky;
-      top: 0;
-      background: #fff;
-      z-index: 10;
-      padding-bottom: 10px;
-      margin-bottom: 10px;
-    }
-
-    #currentProblem {
-      background: #ffc;
-      padding: 10px;
-      font-size: 20px;
-      border-bottom: 1px solid #ccc;
-    }
-
-    /* クリック済みリンクの色を変えるためのクラス */
-    .visitedLink {
-      color: purple !important;
+    /* Smooth scrolling for anchor links (optional) */
+    html {
+      scroll-behavior: smooth;
     }
   </style>
 </head>
-<body>
-  <div id="leftPanel">
-    <h1>Lichess Positions</h1>
-    <div id="topControls">
-      <input type="number" id="problemNumber" placeholder="Enter problem number"/>
-      <button id="goButton">Go</button>
-      <button id="randomButton">Random</button>
-    </div>
-    <div id="positionsContainer"></div>
-  </div>
-  <div id="rightPanel">
-    <div id="currentProblem">No problem selected</div>
-    <iframe id="lichessFrame"></iframe>
+<body
+  x-data="trainerApp()"
+  x-init="init()"
+  :class="dark ? 'dark' : ''"
+  class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100"
+>
+  <div class="flex flex-col md:flex-row h-screen">
+    <!-- Sidebar -->
+    <aside
+      class="w-full md:w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto"
+    >
+      <div
+        class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700"
+      >
+        <h1 class="text-xl font-bold">Tactics Trainer</h1>
+        <button
+          @click="toggleDark()"
+          class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+          aria-label="Toggle dark mode"
+        >
+          <!-- Heroicon sun/moon -->
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m8-8h1M3 12H2m15.36 6.36l.707.707M6.343 6.343l.707.707m12.02 0l-.707.707m0 12.02l-.707-.707M6.343 17.657l.707-.707"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-4 space-y-2">
+        <input
+          type="search"
+          placeholder="Search ID or type..."
+          class="w-full px-3 py-2 rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700"
+          x-model="query"
+          @input="filterList()"
+        />
+        <div class="text-sm text-gray-500" x-text="`${visited.size} / ${problems.length} solved`"></div>
+        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded h-2">
+          <div
+            class="bg-green-500 h-2 rounded"
+            :style="`width:${progress}%`"
+          ></div>
+        </div>
+      </div>
+
+      <nav class="px-4 pb-4 space-y-1">
+        <template x-for="group in grouped" :key="group.name">
+          <details class="group" open>
+            <summary
+              class="cursor-pointer flex items-center justify-between py-2 text-lg font-medium hover:text-blue-600 dark:hover:text-blue-400"
+            >
+              <span x-text="group.name"></span>
+              <span class="text-sm" x-text="`${group.items.length}`"></span>
+            </summary>
+            <ul class="pl-4 space-y-1">
+              <template x-for="item in group.items" :key="item.problemid">
+                <li>
+                  <a
+                    href="#"
+                    @click.prevent="openProblem(item)"
+                    :class="{'text-purple-600': visited.has(item.problemid)}"
+                    class="block px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                    x-text="`#${item.problemid}`"
+                  ></a>
+                </li>
+              </template>
+            </ul>
+          </details>
+        </template>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 flex flex-col">
+      <header
+        class="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
+      >
+        <h2 class="text-lg font-semibold" x-text="currentLabel"></h2>
+      </header>
+      <section class="flex-1">
+        <iframe
+          id="board"
+          class="w-full h-full"
+          :src="currentSrc"
+          frameborder="0"
+          allowfullscreen
+        ></iframe>
+      </section>
+    </main>
   </div>
 
   <script>
-    // 最後に開いた問題IDを保存する
-    function storeLastProblem(problemId) {
-      localStorage.setItem('lastProblem', problemId);
-    }
-
-    // 最後に開いた問題IDを取得する
-    function getLastProblem() {
-      return localStorage.getItem('lastProblem');
-    }
-
-    // 訪問済みの問題IDリストを保存する
-    function storeVisitedProblem(problemId) {
-      const visitedString = localStorage.getItem('visitedProblems');
-      let visited = visitedString ? JSON.parse(visitedString) : [];
-      // 数値・文字列混在を避けるため、文字列で統一
-      if (!visited.includes(String(problemId))) {
-        visited.push(String(problemId));
-        localStorage.setItem('visitedProblems', JSON.stringify(visited));
-      }
-    }
-
-    // 訪問済みの問題IDリストを取得する
-    function getVisitedProblems() {
-      const visitedString = localStorage.getItem('visitedProblems');
-      return visitedString ? JSON.parse(visitedString) : [];
-    }
-
-    // 全問題データを取得
-    async function fetchProblems() {
-      const response = await fetch('problems.json');
-      const data = await response.json();
-      return data.problems;
-    }
-
-    // 左側に問題リストを描画
-    function loadPositions(problems) {
-      const positionsContainer = document.getElementById('positionsContainer');
-      const problemsByType = {};
-
-      // 訪問済みの問題一覧を先に取得
-      const visitedProblems = getVisitedProblems();
-
-      problems.forEach((problem) => {
-        const { type } = problem;
-        if (!problemsByType[type]) {
-          problemsByType[type] = [];
-        }
-        problemsByType[type].push(problem);
-      });
-
-      Object.keys(problemsByType).forEach((type) => {
-        const typeDiv = document.createElement('div');
-        const typeTitle = document.createElement('h2');
-        typeTitle.textContent = type;
-        typeDiv.appendChild(typeTitle);
-
-        const problemsForType = problemsByType[type];
-        let start = Math.floor(problemsForType[0].problemid / 100) * 100;
-        let end = start + 99;
-
-        while (start <= problemsForType[problemsForType.length - 1].problemid) {
-          const sublist = problemsForType.filter(
-            (problem) => problem.problemid >= start && problem.problemid <= end
+    function trainerApp() {
+      return {
+        problems: [],
+        grouped: [],
+        visited: new Set(
+          JSON.parse(localStorage.getItem('visitedProblems') || '[]')
+        ),
+        currentSrc: '',
+        currentLabel: 'Pick a problem',
+        query: '',
+        dark: localStorage.getItem('darkMode') === 'true',
+        get progress() {
+          return this.problems.length
+            ? (this.visited.size / this.problems.length) * 100
+            : 0;
+        },
+        toggleDark() {
+          this.dark = !this.dark;
+          localStorage.setItem('darkMode', this.dark);
+        },
+        filterList() {
+          if (!this.query) {
+            this.grouped = groupByType(this.problems);
+            return;
+          }
+          const q = this.query.toLowerCase();
+          this.grouped = groupByType(
+            this.problems.filter(
+              (p) =>
+                String(p.problemid).includes(q) ||
+                p.type.toLowerCase().includes(q)
+            )
           );
-          if (sublist.length > 0) {
-            const sublistButton = document.createElement('button');
-            sublistButton.className = 'accordion';
-            sublistButton.textContent = `${type} (${start} - ${end})`;
-
-            const panelDiv = document.createElement('div');
-            panelDiv.className = 'panel';
-            const ul = document.createElement('ul');
-
-            sublist.forEach((problem) => {
-              const li = document.createElement('li');
-              const fen = problem.fen;
-              const formattedFen = fen.replace(/ /g, '_');
-              const lichessLink = `https://lichess.org/analysis/${formattedFen}`;
-
-              const link = document.createElement('a');
-              link.href = '#';
-              link.textContent = `Problem ${problem.problemid}`;
-              // 訪問済みなら色を変える
-              if (visitedProblems.includes(String(problem.problemid))) {
-                link.classList.add('visitedLink');
-              }
-
-              link.addEventListener('click', (event) => {
-                event.preventDefault();
-                const iframe = document.getElementById('lichessFrame');
-                iframe.src = lichessLink;
-                document.getElementById('currentProblem').textContent = `Selected Problem: ${problem.problemid}`;
-
-                // クッキーやlocalStorageに保存
-                storeLastProblem(problem.problemid);
-                storeVisitedProblem(problem.problemid);
-
-                // 今回クリックしたリンクの色を即座に変える
-                link.classList.add('visitedLink');
-              });
-
-              li.appendChild(link);
-              ul.appendChild(li);
-            });
-
-            panelDiv.appendChild(ul);
-            typeDiv.appendChild(sublistButton);
-            typeDiv.appendChild(panelDiv);
+        },
+        openProblem(item) {
+          const fenUrl = encodeURIComponent(item.fen);
+          // Use lichess embed widget for a light-weight board
+          this.currentSrc = `https://lichess.org/embed/board?fen=${fenUrl}&bg=system`;
+          this.currentLabel = `#${item.problemid} – ${item.type}`;
+          this.visited.add(item.problemid);
+          localStorage.setItem(
+            'visitedProblems',
+            JSON.stringify(Array.from(this.visited))
+          );
+          localStorage.setItem('lastProblem', item.problemid);
+        },
+        async init() {
+          const res = await fetch('problems.json');
+          const data = await res.json();
+          this.problems = data.problems;
+          this.grouped = groupByType(this.problems);
+          // Restore last session
+          const last = localStorage.getItem('lastProblem');
+          if (last) {
+            const p = this.problems.find((p) => p.problemid == last);
+            if (p) this.openProblem(p);
           }
-          start = end + 1;
-          end = start + 99;
-        }
-
-        positionsContainer.appendChild(typeDiv);
-      });
-
-      // アコーディオン機能
-      const acc = document.getElementsByClassName('accordion');
-      for (let j = 0; j < acc.length; j++) {
-        acc[j].addEventListener('click', function () {
-          this.classList.toggle('active');
-          const panel = this.nextElementSibling;
-          if (panel.style.display === 'block') {
-            panel.style.display = 'none';
-          } else {
-            panel.style.display = 'block';
-          }
+        },
+      };
+      function groupByType(arr) {
+        const map = {};
+        arr.forEach((p) => {
+          (map[p.type] = map[p.type] || []).push(p);
         });
+        return Object.keys(map).map((k) => ({ name: k, items: map[k] }));
       }
     }
-
-    // 指定したproblemNumberの問題を開く
-    function openProblemByNumber(problems, problemNumber) {
-      const problem = problems.find((p) => p.problemid == problemNumber);
-      if (problem) {
-        const formattedFen = problem.fen.replace(/ /g, '_');
-        const lichessLink = `https://lichess.org/analysis/${formattedFen}`;
-        const iframe = document.getElementById('lichessFrame');
-        iframe.src = lichessLink;
-        document.getElementById('currentProblem').textContent = `Selected Problem: ${problem.problemid}`;
-
-        storeLastProblem(problem.problemid);
-        storeVisitedProblem(problem.problemid);
-      } else {
-        alert('Problem not found');
-      }
-    }
-
-    // ランダムな問題を開く
-    function openRandomProblem(problems) {
-      const randomIndex = Math.floor(Math.random() * problems.length);
-      const randomProblem = problems[randomIndex];
-      if (randomProblem) {
-        openProblemByNumber(problems, randomProblem.problemid);
-        document.getElementById('problemNumber').value = randomProblem.problemid;
-      }
-    }
-
-    // ページ初期化
-    async function init() {
-      const problems = await fetchProblems();
-      loadPositions(problems);
-
-      // Goボタン押下で問題を開く
-      document.getElementById('goButton').addEventListener('click', () => {
-        const problemNumber = document.getElementById('problemNumber').value;
-        openProblemByNumber(problems, problemNumber);
-      });
-      // Enterキーでも同様に
-      document.getElementById('problemNumber').addEventListener('keypress', function (event) {
-        if (event.key === 'Enter') {
-          const problemNumber = document.getElementById('problemNumber').value;
-          openProblemByNumber(problems, problemNumber);
-        }
-      });
-
-      // Randomボタンでランダムに問題を開く
-      document.getElementById('randomButton').addEventListener('click', () => {
-        openRandomProblem(problems);
-      });
-
-      // 最後に開いていた問題があれば自動的に開く
-      const lastProblem = getLastProblem();
-      if (lastProblem) {
-        openProblemByNumber(problems, lastProblem);
-        document.getElementById('problemNumber').value = lastProblem;
-      }
-    }
-
-    init();
   </script>
+  <script>feather.replace();</script>
 </body>
 </html>
