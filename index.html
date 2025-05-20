@@ -2,112 +2,82 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Chess Problems (Lite)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tactics (SVG Board)</title>
 
-  <!-- jQuery (needed for chessboard 1.0.0 plugin build) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
-  <!-- chessboard.js v1.0.0 (jQuery plugin build) -->
-  <link  href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-  <!-- Fallback in case cdnjs blocked -->
-  <script>
-    if (!window.Chessboard) {
-      var s=document.createElement('script');
-      s.src='https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/www/js/chessboard.js';
-      document.head.appendChild(s);
-      var l=document.createElement('link');
-      l.rel='stylesheet';
-      l.href='https://cdn.jsdelivr.net/npm/chessboardjs@1.0.0/www/css/chessboard.css';
-      document.head.appendChild(l);
-    }
-  </script>
+  <!-- cm-chessboard UMD + CSS → 依存ゼロでロード -->
+  <link href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.8/assets/chessboard.css"
+        rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.8/cjs/cm-chessboard-min.js"></script>
+  <!-- ↑ UMD ビルドなので <script type=\"module\"> 不要 -->
 
   <style>
-    body      { margin:0; font-family:system-ui,sans-serif; height:100vh; display:flex; }
-    #left     { width:280px; overflow-y:auto; border-right:1px solid #ddd; padding:8px; box-sizing:border-box; }
-    #right    { flex:1; display:flex; flex-direction:column; }
-    #boardBox { flex:1; display:flex; justify-content:center; align-items:center; }
-    h1        { margin:0 0 8px 0; font-size:18px; }
-    ul        { list-style:none; padding-left:0; margin:0; }
-    li a      { display:block; padding:4px 6px; text-decoration:none; color:#036; border-radius:4px; }
-    li a:hover{ background:#eef; }
-    .visited  { color:purple !important; }
-    #current  { padding:8px; border-bottom:1px solid #ddd; background:#fafafa; }
+    body{margin:0;font-family:system-ui,sans-serif;height:100vh;display:flex}
+    #side{width:280px;overflow-y:auto;border-right:1px solid #ddd;padding:8px;box-sizing:border-box}
+    #main{flex:1;display:flex;flex-direction:column}
+    #boardBox{flex:1;display:flex;justify-content:center;align-items:center}
+    ul{list-style:none;padding:0;margin:0} a{display:block;padding:4px 6px;
+      text-decoration:none;color:#036;border-radius:4px} a:hover{background:#eef}
+    .v{color:purple!important} #info{padding:8px;border-bottom:1px solid #ddd;background:#fafafa}
   </style>
 </head>
 <body>
-  <div id="left">
-    <h1>Tactics</h1>
-    <input id="filter" placeholder="Filter…" style="width:100%;padding:4px;margin-bottom:6px;">
+  <div id="side">
+    <h2>Problems</h2>
+    <input id="filter" placeholder="Filter…" style="width:100%;padding:4px;margin-bottom:6px">
     <ul id="list"></ul>
   </div>
 
-  <div id="right">
-    <div id="current">No problem selected</div>
+  <div id="main">
+    <div id="info">select a problem</div>
     <div id="boardBox"><div id="board" style="width:min(90vmin,500px)"></div></div>
   </div>
 
 <script>
-(async function(){
-  // 1) Load problems
-  let problems=[];
+(async () => {
+  // ---------- ① データ読込 ----------
+  let probs=[];
   try{
-    const r=await fetch('problems.json');
-    if(!r.ok) throw 0;
-    problems=(await r.json()).problems;
-  }catch(e){
-    problems=[
-     {problemid:1,type:'Mate in One', first:'White', fen:'3q1rk1/5pbp/5Qp1/8/8/2B5/5PPP/6K1 w - - 0 1'},
-     {problemid:2,type:'Mate in One', first:'White', fen:'2r2rk1/2q2p1p/6pQ/4P1N1/8/8/PPP5/2KR4 w - - 0 1'}
-    ];
+    const r=await fetch('problems.json'); if(!r.ok) throw 0;
+    probs=(await r.json()).problems;
+  }catch{
+    probs=[{problemid:1,type:'Mate in One',first:'White',fen:'3q1rk1/5pbp/5Qp1/8/8/2B5/5PPP/6K1 w - -'}];
   }
 
-  // 2) Init board after library ready
-  function whenReady(fn){
-    if(window.Chessboard) fn();
-    else setTimeout(()=>whenReady(fn),50);
+  // ---------- ② SVG ボード初期化 ----------
+  const board=new Chessboard(document.getElementById('board'),{
+    position:'start',
+    sprite: { // 駒 SVG 一式のある CDN パス
+      url:"https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.8/assets/chessboard-sprite.svg"
+    }
+  }); // 駒 PNG 問題が完全に解消 :contentReference[oaicite:3]{index=3}
+
+  const vis=new Set(JSON.parse(localStorage.getItem('vis')||'[]'));
+  const list=document.getElementById('list');
+  const info=document.getElementById('info');
+
+  // ---------- ③ リスト描画 & フィルタ ----------
+  function draw(q=''){
+    list.innerHTML='';
+    probs.filter(p=>String(p.problemid).includes(q)||p.type.toLowerCase().includes(q.toLowerCase()))
+         .forEach(p=>{
+           const a=document.createElement('a');
+           a.textContent=`#${p.problemid} – ${p.type}`;
+           if(vis.has(p.problemid)) a.classList.add('v');
+           a.onclick=()=>open(p,a); list.appendChild(a);
+         });
   }
+  document.getElementById('filter').oninput=e=>draw(e.target.value);
+  draw();
 
-  whenReady(()=>{
-    const board=Chessboard('board','start');
-    const visited=new Set(JSON.parse(localStorage.getItem('visited')||'[]'));
-    const list=document.getElementById('list');
-    const filterInput=document.getElementById('filter');
-
-    function draw(filter=''){
-      list.innerHTML='';
-      problems.filter(p=>String(p.problemid).includes(filter)||p.type.toLowerCase().includes(filter.toLowerCase()))
-        .forEach(p=>{
-          const li=document.createElement('li');
-          const a=document.createElement('a');
-          a.textContent=`#${p.problemid} – ${p.type}`;
-          if(visited.has(p.problemid)) a.classList.add('visited');
-          a.onclick=()=>open(p,a);
-          li.appendChild(a);
-          list.appendChild(li);
-        });
-    }
-
-    function open(p,link){
-      board.position(p.fen);
-      document.getElementById('current').textContent=`Problem #${p.problemid} – ${p.type} (${p.first} to move)`;
-      visited.add(p.problemid);
-      localStorage.setItem('visited',JSON.stringify([...visited]));
-      if(link) link.classList.add('visited');
-      localStorage.setItem('last', p.problemid);
-    }
-
-    filterInput.oninput=e=>draw(e.target.value);
-
-    draw();
-
-    const last=localStorage.getItem('last');
-    if(last){
-      const p=problems.find(x=>x.problemid==last);
-      if(p) open(p);
-    }
-  });
+  // ---------- ④ 問題オープン ----------
+  function open(p,link){
+    board.setPosition(p.fen);
+    info.textContent=`#${p.problemid} – ${p.type} (${p.first} to move)`;
+    vis.add(p.problemid);
+    localStorage.setItem('vis',JSON.stringify([...vis]));
+    link.classList.add('v'); // visited coloring
+  }
 })();
 </script>
 </body>
