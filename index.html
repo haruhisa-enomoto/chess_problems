@@ -1,83 +1,341 @@
-<!DOCTYPE html><html lang="ja">
-<head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Tactics – cm-chessboard</title>
+<!DOCTYPE html>
+<html lang="ja">
 
-  <!-- ボードの CSS（CDN） -->
-  <link href="https://cdn.jsdelivr.net/npm/cm-chessboard@8/dist/cm-chessboard.css" rel="stylesheet">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Chess Tactics</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.1/assets/chessboard.css">
   <style>
-    body{margin:0;font-family:system-ui,sans-serif;height:100vh;display:flex}
-    #side{width:280px;overflow-y:auto;border-right:1px solid #ddd;padding:8px;box-sizing:border-box}
-    #main{flex:1;display:flex;flex-direction:column}
-    #boardBox{flex:1;display:flex;justify-content:center;align-items:center}
-    ul{list-style:none;padding:0;margin:0}
-    a{display:block;padding:4px 6px;color:#036;text-decoration:none;border-radius:4px}
-    a:hover{background:#eef}.v{color:purple!important}
-    #info{padding:8px;border-bottom:1px solid #ddd;background:#fafafa}
+    :root {
+      --blue: #1373d1;
+      --blue-h: #0e59a6;
+      --purple: #6a1b9a;
+      --yellow: #fff2aa;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, sans-serif
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex
+    }
+
+    /* ---- 左パネル ---- */
+    #side {
+      width: 320px;
+      min-width: 240px;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden
+    }
+
+    #side h2 {
+      margin: 10px;
+      font-size: 20px
+    }
+
+    #filter {
+      margin: 0 10px 8px;
+      padding: 6px 8px;
+      border: 1px solid #bbb;
+      border-radius: 4px
+    }
+
+    #list {
+      flex: 1;
+      overflow-y: auto;
+      margin: 0;
+      padding: 0;
+      list-style: none
+    }
+
+    .groupBtn {
+      width: 100%;
+      text-align: left;
+      border: none;
+      background: #f5f5f5;
+      padding: 6px 8px;
+      font-weight: bold;
+      cursor: pointer;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      justify-content: space-between;
+      align-items: center
+    }
+
+    .groupBtn:hover {
+      background: #e9e9e9
+    }
+
+    .arrow {
+      transition: .2s
+    }
+
+    .closed>.arrow {
+      transform: rotate(-90deg)
+    }
+
+    .count {
+      font-size: 12px;
+      color: #666
+    }
+
+    .subList {
+      display: none;
+      padding-left: 14px
+    }
+
+    .open>.subList {
+      display: block
+    }
+
+    .link {
+      display: block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--blue);
+      text-decoration: none
+    }
+
+    .link:hover {
+      background: #eaf2ff;
+      color: var(--blue-h)
+    }
+
+    .solved {
+      color: var(--purple);
+      opacity: .8;
+      text-decoration: line-through;
+      text-decoration-thickness: 2px
+    }
+
+    .current {
+      background: var(--yellow)
+    }
+
+    #progress {
+      padding: 10px;
+      font-size: 12px;
+      color: #555;
+      border-top: 1px solid #ccc
+    }
+
+    #barWrap {
+      height: 6px;
+      background: #ddd;
+      border-radius: 3px;
+      margin-top: 4px
+    }
+
+    #bar {
+      height: 100%;
+      background: #4caf50;
+      border-radius: 3px;
+      width: 0
+    }
+
+    /* ---- 右パネル ---- */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center
+    }
+
+    #toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px
+    }
+
+    button,
+    a.btn {
+      padding: 6px 12px;
+      border: 1px solid #666;
+      border-radius: 6px;
+      background: #f6f6f6;
+      cursor: pointer;
+      text-decoration: none;
+      color: #000
+    }
+
+    button:hover,
+    a.btn:hover {
+      background: #eee
+    }
+
+    #title {
+      font-size: 20px;
+      margin: 4px 0
+    }
+
+    /* 盤サイズ 700 px */
+    #board {
+      width: 100%;
+      max-width: 700px;
+      height: 700px;
+      max-height: 700px
+    }
   </style>
 </head>
+
 <body>
+  <!-- 左側 -->
   <div id="side">
     <h2>Problems</h2>
-    <input id="filter" placeholder="Filter…" style="width:100%;padding:4px;margin-bottom:6px">
+    <input id="filter" placeholder="Filter…">
     <ul id="list"></ul>
+    <div id="progress">
+      <span id="pTxt">0 / 0 solved</span>
+      <div id="barWrap">
+        <div id="bar"></div>
+      </div>
+    </div>
   </div>
 
+  <!-- 右側 -->
   <div id="main">
-    <div id="info">select a problem</div>
-    <div id="boardBox"><div id="board" style="width:min(90vmin,500px)"></div></div>
+    <div id="toolbar">
+      <button id="prev">◀ Prev</button>
+      <button id="randAll">Rand (ALL)</button>
+      <button id="randGrp">Rand (group)</button>
+      <button id="next">Next ▶</button>
+      <button id="solvedBtn" disabled>Solved ✔</button>
+      <a id="lichess" class="btn" href="#" target="_blank">Lichess ↗</a>
+    </div>
+    <h1 id="title">Loading…</h1>
+    <div id="board"></div>
   </div>
 
-<!-- ES-Module で読み込み → グローバル衝突なし -->
-<script type="module">
-  import {Chessboard} from 'https://cdn.jsdelivr.net/npm/cm-chessboard@8/src/Chessboard.js';
+  <script type="module">
+    import { Chessboard }
+      from 'https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.1/src/Chessboard.js';
 
-  const spriteUrl =
-    'https://cdn.jsdelivr.net/npm/cm-chessboard@8/assets/chessboard-sprite.svg'; // SVG 駒セット:contentReference[oaicite:3]{index=3}
-  const board = new Chessboard(document.getElementById('board'), {
-    sprite: {url: spriteUrl},
-    position: 'start'
-  });
+    /* -------- state -------- */
+    let problems = [], idx = 0;
+    const solved = new Set(JSON.parse(localStorage.getItem('solved') || '[]'));
+    const openGroups = new Set();
 
-  // ---------- 問題データ ----------
-  let problems = [];
-  try{
-    const res = await fetch('problems.json');             // 自作 JSON
-    if(!res.ok) throw 0;
-    problems = (await res.json()).problems;
-  }catch{
-    problems = [                                          // デモ1問
-      {problemid:1,type:'Mate in One',first:'White',
-       fen:'3q1rk1/5pbp/5Qp1/8/8/2B5/5PPP/6K1 w - -'}
-    ];
-  }
+    /* -------- DOM -------- */
+    const $ = s => document.querySelector(s);
+    const list = $('#list'), title = $('#title'), lichess = $('#lichess'),
+      solvedBtn = $('#solvedBtn'), bar = $('#bar'), pTxt = $('#pTxt');
 
-  const list = document.getElementById('list');
-  const filter = document.getElementById('filter');
-  const info = document.getElementById('info');
-  const seen = new Set(JSON.parse(localStorage.getItem('seen')||'[]'));
+    /* -------- board -------- */
+    const board = new Chessboard($('#board'), {
+      assetsUrl: 'https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.1/assets/',
+      style: { moveInputMode: 'none' }
+    });
 
-  function redraw(q=''){
-    list.innerHTML='';
-    problems
-      .filter(p=>String(p.problemid).includes(q)||p.type.toLowerCase().includes(q.toLowerCase()))
-      .forEach(p=>{
-        const a=document.createElement('a');
-        a.textContent=`#${p.problemid} – ${p.type}`;
-        if(seen.has(p.problemid)) a.classList.add('v');
-        a.onclick=()=>open(p,a);
-        list.appendChild(a);
+    /* helpers */
+    const fenURL = f => `https://lichess.org/analysis/${f.replace(/ /g, '_')}`;
+    function gKey(t) {
+      const m = t.match(/mate in (\d+)/i); if (m) return `Mate in ${m[1]}`;
+      const w = t.match(/mate in (one|two|three|four|five)/i);
+      if (w) { const k = { one: 1, two: 2, three: 3, four: 4, five: 5 }; return `Mate in ${k[w[1]]}`; }
+      return 'Others';
+    }
+    const gSort = (a, b) => (parseInt(a.match(/\d+/)) || 99) - (parseInt(b.match(/\d+/)) || 99);
+    function updBar() {
+      pTxt.textContent = `${solved.size}/${problems.length} solved`;
+      bar.style.width = `${solved.size / problems.length * 100}%`;
+    }
+
+    /* list render */
+    function render(filter = '') {
+      list.innerHTML = '';
+      const grp = {}; problems.forEach(p => (grp[gKey(p.type)] ??= ([])).push(p));
+      Object.keys(grp).sort(gSort).forEach(g => {
+        const arr = grp[g], done = arr.filter(p => solved.has(p.problemid)).length;
+        const li = document.createElement('li');
+        li.className = 'groupItem ' + (openGroups.has(g) ? 'open' : 'closed');
+        li.innerHTML = `<button class="groupBtn">
+        <span>${g}</span>
+        <span class="count">${done}/${arr.length}
+          <span class="arrow">▶</span></span></button>`;
+        li.querySelector('.groupBtn').onclick = () => {
+          openGroups.has(g) ? openGroups.delete(g) : openGroups.add(g);
+          li.classList.toggle('open'); li.classList.toggle('closed');
+        };
+        const ul = document.createElement('ul'); ul.className = 'subList';
+        arr.forEach(p => {
+          if (filter && !`${p.problemid}`.includes(filter) &&
+            !p.type.toLowerCase().includes(filter)) return;
+          const sub = document.createElement('li');
+          sub.innerHTML = `<a class="link${solved.has(p.problemid) ? ' solved' : ''}"
+           data-id="${p.problemid}" href="#">#${p.problemid}</a>`;
+          sub.firstElementChild.onclick = e => { e.preventDefault(); idx = problems.indexOf(p); load(); };
+          ul.appendChild(sub);
+        });
+        li.appendChild(ul); list.appendChild(li);
       });
-  }
-  filter.oninput=e=>redraw(e.target.value);
-  redraw();
+      highlight();
+    }
+    function highlight() {
+      list.querySelectorAll('.link').forEach(a => a.classList.remove('current'));
+      const cur = list.querySelector(`.link[data-id="${problems[idx].problemid}"]`);
+      cur?.classList.add('current'); cur?.scrollIntoView({ block: 'nearest' });
+    }
 
-  function open(p,a){
-    board.setPosition(p.fen);
-    info.textContent=`#${p.problemid} – ${p.type} (${p.first} to move)`;
-    seen.add(p.problemid);
-    localStorage.setItem('seen',JSON.stringify([...seen]));
-    a.classList.add('v');
-  }
-</script>
-</body></html>
+    /* load problem */
+    function load() {
+      const p = problems[idx];
+      title.textContent = `#${p.problemid} – ${p.type}`;
+      board.setPosition(p.fen, true);
+      lichess.href = fenURL(p.fen);
+      solvedBtn.disabled = false;
+      solvedBtn.textContent = solved.has(p.problemid) ? 'Solved ✔' : 'Mark Solved';
+      openGroups.add(gKey(p.type));
+      render($('#filter').value.toLowerCase());
+      updBar();
+    }
+
+    /* solved */
+    solvedBtn.onclick = () => {
+      solved.add(problems[idx].problemid);
+      localStorage.setItem('solved', JSON.stringify([...solved]));
+      idx = (idx + 1) % problems.length; load();
+    };
+
+    /* nav buttons */
+    $('#prev').onclick = () => { idx = (idx - 1 + problems.length) % problems.length; load(); };
+    $('#next').onclick = () => { idx = (idx + 1) % problems.length; load(); };
+    $('#randAll').onclick = () => { idx = (Math.random() * problems.length) | 0; load(); };
+    $('#randGrp').onclick = () => {
+      const same = problems.filter(p => gKey(p.type) === gKey(problems[idx].type));
+      idx = problems.indexOf(same[(Math.random() * same.length) | 0]); load();
+    };
+
+    /* filter */
+    $('#filter').oninput = e => render(e.target.value.toLowerCase());
+
+    /* keyboard shortcuts */
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT') return;
+      switch (e.key) {
+        case 'ArrowLeft': $('#prev').click(); break;
+        case 'ArrowRight': $('#next').click(); break;
+        case 'r': case 'R': $('#randAll').click(); break;
+        case 'g': case 'G': $('#randGrp').click(); break;
+        case 's': case 'S':
+        case 'Enter': if (!solvedBtn.disabled) solvedBtn.click(); break;
+      }
+    });
+
+    /* fetch problems */
+    (async () => {
+      problems = (await fetch('problems.json').then(r => r.json())).problems;
+      load();
+    })();
+  </script>
+</body>
+
+</html>
