@@ -238,9 +238,15 @@
     /* helpers */
     const fenURL = f => `https://lichess.org/analysis/${f.replace(/ /g, '_')}`;
     function gKey(t) {
-      const m = t.match(/mate in (\d+)/i); if (m) return `Mate in ${m[1]}`;
-      const w = t.match(/mate in (one|two|three|four|five)/i);
-      if (w) { const k = { one: 1, two: 2, three: 3, four: 4, five: 5 }; return `Mate in ${k[w[1]]}`; }
+      const s = t.toLowerCase();                // ← 追加: 小文字化
+      const m = s.match(/mate in (\d+)/);
+      if (m) return `Mate in ${m[1]}`;
+
+      const w = s.match(/mate in (one|two|three|four|five)/);
+      if (w) {
+        const map = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+        return `Mate in ${map[w[1]]}`;
+      }
       return 'Others';
     }
     const gSort = (a, b) => (parseInt(a.match(/\d+/)) || 99) - (parseInt(b.match(/\d+/)) || 99);
