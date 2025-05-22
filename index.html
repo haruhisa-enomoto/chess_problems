@@ -332,7 +332,12 @@
         case 'r': case 'R': $('#randAll').click(); break;
         case 'g': case 'G': $('#randGrp').click(); break;
         case 's': case 'S':
-        case 'Enter': if (!solvedBtn.disabled) solvedBtn.click(); break;
+        case 'Enter':
+      if (!solvedBtn.disabled) {
+        e.preventDefault();        // ← 既定の click をキャンセル
+        solvedBtn.click();         // 自前の click だけを実行
+      }
+      break;
       }
     });
 
