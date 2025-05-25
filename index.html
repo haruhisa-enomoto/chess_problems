@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Chess Tactics</title>
+  <title>Chess Tactics+</title>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.1/assets/chessboard.css">
   <style>
@@ -13,17 +13,18 @@
       --blue-h: #0e59a6;
       --purple: #6a1b9a;
       --yellow: #fff2aa;
+      --red: #d32f2f;
     }
 
     * {
       box-sizing: border-box;
-      font-family: system-ui, sans-serif
+      font-family: system-ui, sans-serif;
     }
 
     body {
       margin: 0;
       height: 100vh;
-      display: flex
+      display: flex;
     }
 
     /* ---- 左パネル ---- */
@@ -33,19 +34,19 @@
       border-right: 1px solid #ccc;
       display: flex;
       flex-direction: column;
-      overflow: hidden
+      overflow: hidden;
     }
 
     #side h2 {
       margin: 10px;
-      font-size: 20px
+      font-size: 20px;
     }
 
     #filter {
       margin: 0 10px 8px;
       padding: 6px 8px;
       border: 1px solid #bbb;
-      border-radius: 4px
+      border-radius: 4px;
     }
 
     #list {
@@ -53,7 +54,7 @@
       overflow-y: auto;
       margin: 0;
       padding: 0;
-      list-style: none
+      list-style: none;
     }
 
     .groupBtn {
@@ -67,33 +68,33 @@
       border-bottom: 1px solid #ddd;
       display: flex;
       justify-content: space-between;
-      align-items: center
+      align-items: center;
     }
 
     .groupBtn:hover {
-      background: #e9e9e9
+      background: #e9e9e9;
     }
 
     .arrow {
-      transition: .2s
+      transition: .2s;
     }
 
     .closed>.arrow {
-      transform: rotate(-90deg)
+      transform: rotate(-90deg);
     }
 
     .count {
       font-size: 12px;
-      color: #666
+      color: #666;
     }
 
     .subList {
       display: none;
-      padding-left: 14px
+      padding-left: 14px;
     }
 
     .open>.subList {
-      display: block
+      display: block;
     }
 
     .link {
@@ -101,44 +102,49 @@
       padding: 2px 6px;
       border-radius: 4px;
       color: var(--blue);
-      text-decoration: none
+      text-decoration: none;
     }
 
     .link:hover {
       background: #eaf2ff;
-      color: var(--blue-h)
+      color: var(--blue-h);
     }
 
     .solved {
       color: var(--purple);
       opacity: .8;
       text-decoration: line-through;
-      text-decoration-thickness: 2px
+      text-decoration-thickness: 2px;
+    }
+
+    .hardMark {
+      color: var(--red);
+      font-weight: bold;
     }
 
     .current {
-      background: var(--yellow)
+      background: var(--yellow);
     }
 
     #progress {
       padding: 10px;
       font-size: 12px;
       color: #555;
-      border-top: 1px solid #ccc
+      border-top: 1px solid #ccc;
     }
 
     #barWrap {
       height: 6px;
       background: #ddd;
       border-radius: 3px;
-      margin-top: 4px
+      margin-top: 4px;
     }
 
     #bar {
       height: 100%;
       background: #4caf50;
       border-radius: 3px;
-      width: 0
+      width: 0;
     }
 
     /* ---- 右パネル ---- */
@@ -146,14 +152,15 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-      align-items: center
+      align-items: center;
     }
 
     #toolbar {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      padding: 10px
+      padding: 10px;
+      align-items: center;
     }
 
     button,
@@ -164,17 +171,24 @@
       background: #f6f6f6;
       cursor: pointer;
       text-decoration: none;
-      color: #000
+      color: #000;
     }
 
     button:hover,
     a.btn:hover {
-      background: #eee
+      background: #eee;
     }
 
     #title {
       font-size: 20px;
-      margin: 4px 0
+      margin: 4px 0;
+    }
+
+    #timer {
+      min-width: 64px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      font-weight: bold;
     }
 
     /* 盤サイズ 700 px */
@@ -182,7 +196,7 @@
       width: 100%;
       max-width: 700px;
       height: 700px;
-      max-height: 700px
+      max-height: 700px;
     }
   </style>
 </head>
@@ -209,6 +223,8 @@
       <button id="randGrp">Rand (group)</button>
       <button id="next">Next ▶</button>
       <button id="solvedBtn" disabled>Solved ✔</button>
+      <button id="hardBtn" disabled>Mark Hard ★</button>
+      <span id="timer">00:00</span>
       <a id="lichess" class="btn" href="#" target="_blank">Lichess ↗</a>
     </div>
     <h1 id="title">Loading…</h1>
@@ -219,15 +235,20 @@
     import { Chessboard }
       from 'https://cdn.jsdelivr.net/npm/cm-chessboard@8.7.1/src/Chessboard.js';
 
+    /* -------- constants -------- */
+    const TIME_LIMIT = 120; // 秒 (2 分)
+
     /* -------- state -------- */
-    let problems = [], idx = 0;
+    let problems = [], idx = 0, startTime = 0, timerId;
     const solved = new Set(JSON.parse(localStorage.getItem('solved') || '[]'));
+    const hard = new Set(JSON.parse(localStorage.getItem('hard') || '[]'));
     const openGroups = new Set();
 
     /* -------- DOM -------- */
     const $ = s => document.querySelector(s);
     const list = $('#list'), title = $('#title'), lichess = $('#lichess'),
-      solvedBtn = $('#solvedBtn'), bar = $('#bar'), pTxt = $('#pTxt');
+      solvedBtn = $('#solvedBtn'), bar = $('#bar'), pTxt = $('#pTxt'), timer = $('#timer'),
+      hardBtn = $('#hardBtn');
 
     /* -------- board -------- */
     const board = new Chessboard($('#board'), {
@@ -238,10 +259,9 @@
     /* helpers */
     const fenURL = f => `https://lichess.org/analysis/${f.replace(/ /g, '_')}`;
     function gKey(t) {
-      const s = t.toLowerCase();                // ← 追加: 小文字化
+      const s = t.toLowerCase();
       const m = s.match(/mate in (\d+)/);
       if (m) return `Mate in ${m[1]}`;
-
       const w = s.match(/mate in (one|two|three|four|five)/);
       if (w) {
         const map = { one: 1, two: 2, three: 3, four: 4, five: 5 };
@@ -253,6 +273,22 @@
     function updBar() {
       pTxt.textContent = `${solved.size}/${problems.length} solved`;
       bar.style.width = `${solved.size / problems.length * 100}%`;
+    }
+
+    /* timer functions */
+    function startTimer() {
+      clearInterval(timerId);
+      startTime = Date.now();
+      tick();
+      timerId = setInterval(tick, 1000);
+    }
+    function tick() {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      const remain = Math.max(0, TIME_LIMIT - elapsed);
+      const m = String(Math.floor(remain / 60)).padStart(2, '0');
+      const s = String(remain % 60).padStart(2, '0');
+      timer.textContent = `${m}:${s}`;
+      if (remain === 0) clearInterval(timerId);
     }
 
     /* list render */
@@ -276,7 +312,12 @@
           if (filter && !`${p.problemid}`.includes(filter) &&
             !p.type.toLowerCase().includes(filter)) return;
           const sub = document.createElement('li');
-          sub.innerHTML = `<a class="link${solved.has(p.problemid) ? ' solved' : ''}"
+          const cls = [
+            'link',
+            solved.has(p.problemid) ? 'solved' : '',
+            hard.has(p.problemid) ? 'hardMark' : ''
+          ].join(' ');
+          sub.innerHTML = `<a class="${cls}"
            data-id="${p.problemid}" href="#">#${p.problemid}</a>`;
           sub.firstElementChild.onclick = e => { e.preventDefault(); idx = problems.indexOf(p); load(); };
           ul.appendChild(sub);
@@ -298,17 +339,36 @@
       board.setPosition(p.fen, true);
       lichess.href = fenURL(p.fen);
       solvedBtn.disabled = false;
+      hardBtn.disabled = false;
       solvedBtn.textContent = solved.has(p.problemid) ? 'Solved ✔' : 'Mark Solved';
+      hardBtn.textContent = hard.has(p.problemid) ? 'Hard ★' : 'Mark Hard ★';
       openGroups.add(gKey(p.type));
       render($('#filter').value.toLowerCase());
       updBar();
+      startTimer();
     }
 
     /* solved */
     solvedBtn.onclick = () => {
-      solved.add(problems[idx].problemid);
+      const id = problems[idx].problemid;
+      solved.add(id);
       localStorage.setItem('solved', JSON.stringify([...solved]));
+      // If solved after timeout, also mark hard automatically
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      if (elapsed > TIME_LIMIT) {
+        hard.add(id);
+        localStorage.setItem('hard', JSON.stringify([...hard]));
+      }
       idx = (idx + 1) % problems.length; load();
+    };
+
+    /* hard toggle */
+    hardBtn.onclick = () => {
+      const id = problems[idx].problemid;
+      if (hard.has(id)) hard.delete(id); else hard.add(id);
+      localStorage.setItem('hard', JSON.stringify([...hard]));
+      hardBtn.textContent = hard.has(id) ? 'Hard ★' : 'Mark Hard ★';
+      render($('#filter').value.toLowerCase());
     };
 
     /* nav buttons */
@@ -331,13 +391,14 @@
         case 'ArrowRight': $('#next').click(); break;
         case 'r': case 'R': $('#randAll').click(); break;
         case 'g': case 'G': $('#randGrp').click(); break;
+        case 'h': case 'H': if (!hardBtn.disabled) { e.preventDefault(); hardBtn.click(); } break;
         case 's': case 'S':
         case 'Enter':
-      if (!solvedBtn.disabled) {
-        e.preventDefault();        // ← 既定の click をキャンセル
-        solvedBtn.click();         // 自前の click だけを実行
-      }
-      break;
+          if (!solvedBtn.disabled) {
+            e.preventDefault();
+            solvedBtn.click();
+          }
+          break;
       }
     });
 
