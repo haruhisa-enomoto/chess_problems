@@ -221,6 +221,7 @@
       <button id="prev">◀ Prev</button>
       <button id="randAll">Rand (ALL)</button>
       <button id="randGrp">Rand (group)</button>
+      <button id="randHard">Rand (Hard★)</button>
       <button id="next">Next ▶</button>
       <button id="solvedBtn" disabled>Solved ✔</button>
       <button id="hardBtn" disabled>Mark Hard ★</button>
@@ -248,7 +249,7 @@
     const $ = s => document.querySelector(s);
     const list = $('#list'), title = $('#title'), lichess = $('#lichess'),
       solvedBtn = $('#solvedBtn'), bar = $('#bar'), pTxt = $('#pTxt'), timer = $('#timer'),
-      hardBtn = $('#hardBtn');
+      hardBtn = $('#hardBtn'), randHard = $('#randHard');
 
     /* -------- board -------- */
     const board = new Chessboard($('#board'), {
@@ -335,13 +336,15 @@
     /* load problem */
     function load() {
       const p = problems[idx];
-      title.textContent = `#${p.problemid} – ${p.type}`;
+      const active = p.fen.split(' ')[1] === 'w' ? 'White to move' : 'Black to move';
+      title.textContent = `#${p.problemid} – ${p.type} (${active})`;
       board.setPosition(p.fen, true);
       lichess.href = fenURL(p.fen);
       solvedBtn.disabled = false;
       hardBtn.disabled = false;
       solvedBtn.textContent = solved.has(p.problemid) ? 'Solved ✔' : 'Mark Solved';
       hardBtn.textContent = hard.has(p.problemid) ? 'Hard ★' : 'Mark Hard ★';
+      randHard.disabled = hard.size === 0;
       openGroups.add(gKey(p.type));
       render($('#filter').value.toLowerCase());
       updBar();
@@ -368,6 +371,7 @@
       if (hard.has(id)) hard.delete(id); else hard.add(id);
       localStorage.setItem('hard', JSON.stringify([...hard]));
       hardBtn.textContent = hard.has(id) ? 'Hard ★' : 'Mark Hard ★';
+      randHard.disabled = hard.size === 0;
       render($('#filter').value.toLowerCase());
     };
 
@@ -378,6 +382,12 @@
     $('#randGrp').onclick = () => {
       const same = problems.filter(p => gKey(p.type) === gKey(problems[idx].type));
       idx = problems.indexOf(same[(Math.random() * same.length) | 0]); load();
+    };
+    randHard.onclick = () => {
+      const hardProblems = problems.filter(p => hard.has(p.problemid));
+      if (hardProblems.length === 0) return;
+      idx = problems.indexOf(hardProblems[(Math.random() * hardProblems.length) | 0]);
+      load();
     };
 
     /* filter */
@@ -392,6 +402,7 @@
         case 'r': case 'R': $('#randAll').click(); break;
         case 'g': case 'G': $('#randGrp').click(); break;
         case 'h': case 'H': if (!hardBtn.disabled) { e.preventDefault(); hardBtn.click(); } break;
+        case 'd': case 'D': if (!randHard.disabled) { e.preventDefault(); randHard.click(); } break; // d = hard rand
         case 's': case 'S':
         case 'Enter':
           if (!solvedBtn.disabled) {
