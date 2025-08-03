@@ -1,0 +1,272 @@
+:root {
+    --blue: #1373d1;
+    --blue-h: #0e59a6;
+    --purple: #6a1b9a;
+    --yellow: #fff2aa;
+    --red: #d32f2f;
+    --bg: #fff;
+    --fg: #000;
+    --border: #ccc;
+    --bg-alt: #f6f6f6;
+    --drawer-width: 280px;
+}
+
+/* ベース */
+* {
+    box-sizing: border-box;
+    font-family: system-ui, sans-serif;
+    color: var(--fg);
+}
+
+body {
+    margin: 0;
+    display: flex;
+    height: 100vh;
+    background: var(--bg);
+    overflow: hidden;
+    transition: transform .3s ease;
+}
+
+/* ===== ドロワー（サイドバー） ===== */
+#side {
+    width: var(--drawer-width);
+    max-width: 100%;
+    background: var(--bg-alt);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    transform: translateX(0);
+    transition: transform .3s ease;
+    z-index: 1000;
+}
+
+/* 閉じたとき */
+.drawer-closed #side {
+    transform: translateX(-100%);
+}
+
+/* サイドバー内 */
+#side h2 {
+    margin: 10px;
+    font-size: 1.25rem;
+}
+
+#filter {
+    margin: 0 10px 8px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+#list {
+    flex: 1;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.groupBtn {
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: #f5f5f5;
+    padding: 6px 8px;
+    font-weight: bold;
+    cursor: pointer;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.groupBtn:hover {
+    background: #e9e9e9;
+}
+
+.arrow {
+    transition: .2s;
+}
+
+.closed>.arrow {
+    transform: rotate(-90deg);
+}
+
+.count {
+    font-size: 12px;
+    color: #666;
+}
+
+.subList {
+    display: none;
+    padding-left: 14px;
+}
+
+.open>.subList {
+    display: block;
+}
+
+.link {
+    display: block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--blue);
+    text-decoration: none;
+}
+
+.link:hover {
+    background: #eaf2ff;
+    color: var(--blue-h);
+}
+
+.solved {
+    color: var(--purple);
+    opacity: .8;
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+}
+
+.hardMark {
+    color: var(--red);
+    font-weight: bold;
+}
+
+.current {
+    background: var(--yellow);
+}
+
+#progress {
+    padding: 10px;
+    font-size: 12px;
+    color: #555;
+    border-top: 1px solid var(--border);
+}
+
+#barWrap {
+    height: 6px;
+    background: #ddd;
+    border-radius: 3px;
+    margin-top: 4px;
+}
+
+#bar {
+    height: 100%;
+    background: #4caf50;
+    border-radius: 3px;
+    width: 0;
+}
+
+/* ===== メイン領域 ===== */
+#main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-left: var(--drawer-width);
+    transition: margin-left .3s ease;
+}
+
+.drawer-closed #main {
+    margin-left: 0;
+}
+
+#toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px;
+    align-items: center;
+    background: var(--bg-alt);
+    border-bottom: 1px solid var(--border);
+}
+
+button,
+a.btn {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--fg);
+    flex-shrink: 0;
+}
+
+button:hover,
+a.btn:hover {
+    background: var(--bg-alt);
+}
+
+#title {
+    font-size: 1.25rem;
+    margin: 4px 0;
+    text-align: center;
+}
+
+#timer {
+    min-width: 64px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: bold;
+}
+
+#board {
+    width: 100%;
+    max-width: 700px;
+    height: 700px;
+    max-height: 700px;
+}
+
+/* ハンバーガーボタン */
+#toggleSidebar {
+    display: inline-block;
+    font-size: 1.5rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    margin-right: 8px;
+}
+
+/* レスポンシブ */
+@media (max-width: 1024px) {
+    #board {
+        max-width: 100%;
+        height: auto;
+        aspect-ratio: 1/1;
+    }
+}
+
+@media (max-width: 768px) {
+
+    /* モバイルでは閉じた状態がデフォルト */
+    body {
+        overflow: auto;
+    }
+
+    #main {
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    #toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    button,
+    a.btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    #filter {
+        margin: 8px 10px;
+    }
+}
