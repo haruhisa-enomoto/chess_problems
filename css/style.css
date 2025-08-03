@@ -175,11 +175,27 @@ body {
     margin-left: 0;
 }
 
+/* トグルボタンを画面左上に固定し、常に最前面に */
+/* #toggleSidebar {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1101;
+    /* ドロワーの z-index:1000 より大きく */
+/* } */
+
 #toolbar {
+    /* 前面に出す */
+    position: relative;
+    z-index: 1100;
+
+    /* レイアウト設定 */
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    padding: 10px;
+    /* ハンバーガーボタン分を空ける */
+    padding: 10px 10px 10px 48px;
+
     align-items: center;
     background: var(--bg-alt);
     border-bottom: 1px solid var(--border);

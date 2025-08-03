@@ -30,10 +30,10 @@ const list = $('#list'),
       pTxt = $('#pTxt'),
       timer = $('#timer'),
       hardBtn = $('#hardBtn'),
-      randHard = $('#randHard'),
-      exportBtn = $('#exportBtn'),
-      importBtn = $('#importBtn'),
-      importFile = $('#importFile');
+      randHard = $('#randHard')
+      // exportBtn = $('#exportBtn'),
+      // importBtn = $('#importBtn'),
+      // importFile = $('#importFile');
 
 /* ===== ボード初期化 ===== */
 const board = new Chessboard($('#board'), {
@@ -145,11 +145,11 @@ function load() {
   solvedBtn.disabled = false;
   hardBtn.disabled = false;
   solvedBtn.textContent = solved.has(p.problemid)
-    ? 'Solved ✔'
-    : 'Mark Solved';
+    ? '✅'
+    : '✅';
   hardBtn.textContent = hard.has(p.problemid)
-    ? 'Hard ★'
-    : 'Mark Hard ★';
+    ? '💪'
+    : '💪';
   randHard.disabled = hard.size === 0;
   openGroups.add(gKey(p.type));
   render($('#filter').value.toLowerCase());
@@ -179,8 +179,8 @@ hardBtn.onclick = () => {
   else hard.add(id);
   localStorage.setItem('hard', JSON.stringify([...hard]));
   hardBtn.textContent = hard.has(id)
-    ? 'Hard ★'
-    : 'Mark Hard ★';
+    ? '💪'
+    : '💪';
   randHard.disabled = hard.size === 0;
   render($('#filter').value.toLowerCase());
 };
@@ -223,47 +223,47 @@ document.addEventListener('keydown', e => {
       break;
   }
 });
-/* Export */
-exportBtn.onclick = () => {
-  const state = { solved: [...solved], hard: [...hard], lastOpened: idx };
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'chess-tactics-state.json';
-  a.click();
-  URL.revokeObjectURL(url);
-};
-/* Import */
-importBtn.onclick = () => importFile.click();
-importFile.onchange = e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      const obj = JSON.parse(ev.target.result);
-      if (!Array.isArray(obj.solved) || !Array.isArray(obj.hard)) {
-        throw new Error('Invalid format');
-      }
-      solved.clear(); obj.solved.forEach(id => solved.add(id));
-      hard.clear();   obj.hard.forEach(id => hard.add(id));
-      localStorage.setItem('solved', JSON.stringify([...solved]));
-      localStorage.setItem('hard',   JSON.stringify([...hard]));
-      if (typeof obj.lastOpened === 'number') {
-        idx = obj.lastOpened;
-        localStorage.setItem('lastOpened', idx);
-      }
-      load();
-      alert('Import successful!');
-    } catch (err) {
-      console.error(err);
-      alert('Failed to import: ' + err.message);
-    }
-    importFile.value = '';
-  };
-  reader.readAsText(file);
-};
+// /* Export */
+// exportBtn.onclick = () => {
+//   const state = { solved: [...solved], hard: [...hard], lastOpened: idx };
+//   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+//   const url = URL.createObjectURL(blob);
+//   const a = document.createElement('a');
+//   a.href = url;
+//   a.download = 'chess-tactics-state.json';
+//   a.click();
+//   URL.revokeObjectURL(url);
+// };
+// /* Import */
+// importBtn.onclick = () => importFile.click();
+// importFile.onchange = e => {
+//   const file = e.target.files[0];
+//   if (!file) return;
+//   const reader = new FileReader();
+//   reader.onload = ev => {
+//     try {
+//       const obj = JSON.parse(ev.target.result);
+//       if (!Array.isArray(obj.solved) || !Array.isArray(obj.hard)) {
+//         throw new Error('Invalid format');
+//       }
+//       solved.clear(); obj.solved.forEach(id => solved.add(id));
+//       hard.clear();   obj.hard.forEach(id => hard.add(id));
+//       localStorage.setItem('solved', JSON.stringify([...solved]));
+//       localStorage.setItem('hard',   JSON.stringify([...hard]));
+//       if (typeof obj.lastOpened === 'number') {
+//         idx = obj.lastOpened;
+//         localStorage.setItem('lastOpened', idx);
+//       }
+//       load();
+//       alert('Import successful!');
+//     } catch (err) {
+//       console.error(err);
+//       alert('Failed to import: ' + err.message);
+//     }
+//     importFile.value = '';
+//   };
+//   reader.readAsText(file);
+// };
 /* fetch problems */
 (async () => {
   problems = (await fetch('problems.json').then(r => r.json())).problems;
