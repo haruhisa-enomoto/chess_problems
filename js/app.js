@@ -266,6 +266,6 @@ importFile.onchange = e => {
 };
 /* fetch problems */
 (async () => {
-  problems = (await fetch('/problems.json').then(r => r.json())).problems;
+  problems = (await fetch('problems.json').then(r => r.json())).problems;
   load();
 })();
